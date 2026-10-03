@@ -160,7 +160,10 @@ def run(data, output, configs):
             else:
                 item['missing_cost'] += 1
     provider_rows = []
-    for provider, item in sorted(provider_summary.items()):
+    for provider, item in sorted(
+        provider_summary.items(),
+        key=lambda entry: (entry[0] == "TOTAL", entry[0].lower())
+    ):
         avg = (item['cost'] / item['priced_energy']).quantize(Decimal('0.0001')) if item['priced_energy'] else None
         provider_rows.append({'provider': provider, 'energy_kwh': str(item['energy']),
                               'cost_eur': str(item['cost'].quantize(Decimal('0.01'))),
@@ -171,12 +174,34 @@ def run(data, output, configs):
               ['provider', 'energy_kwh', 'cost_eur', 'average_eur_per_kwh',
                'energy_with_cost_kwh', 'sessions', 'sessions_without_cost'], provider_rows)
     write_csv(output / 'errors.csv', ['file', 'error'], errors)
-    print(f'{len(sessions)} sessions, {len(duplicates)} duplicates, {len(errors)} files with errors')
-    for row in rows:
-        if row['provider'] == 'TOTAL':
-            print(f"{row['month']}: {row['energy_kwh']} kWh, {row['cost_eur']} EUR "
-                  f"({row['sessions_without_cost']} sessions without cost)")
+    print("\nStatistik nach Ladeanbieter")
+    print("-" * 85)
 
+    print(
+        f"{'Anbieter':<20}"
+        f"{'Energie (kWh)':>16}"
+        f"{'Kosten (EUR)':>16}"
+        f"{'EUR/kWh':>14}"
+        f"{'Ladungen':>12}"
+    )
+
+    print("-" * 85)
+
+    for row in provider_rows:
+        if row["provider"] == "TOTAL":
+            print("-" * 85)
+
+        print(
+            f"{row['provider']:<20}"
+            f"{row['energy_kwh']:>16}"
+            f"{row['cost_eur']:>16}"
+            f"{row['average_eur_per_kwh']:>14}"
+            f"{row['sessions']:>12}"
+        )
+
+    print("-" * 85)
+    print(f'{len(sessions)} sessions, {len(duplicates)} duplicates, {len(errors)} files with errors')
+ 
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument('--data', type=Path, default=Path('data'))
