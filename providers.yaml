@@ -1,0 +1,24 @@
+# Provider-specific mappings. Empty entries are skipped until configured.
+AudiCharging:
+  delimiter: ";"
+  encoding: utf-8-sig
+  date_formats: ["%d.%m.%y", "%d.%m.%Y"]
+  columns:
+    date: Datum
+    energy_kwh: kWh
+    cost_eur: Betrag
+
+EWEGo: {}
+Vattenfall: {}
+Octopus: {}
+
+Wallbox:
+  delimiter: ";"
+  encoding: utf-8-sig
+  date_formats: ["%d.%m.%Y %H:%M:%S"]
+  columns:
+    date: Start
+    energy_kwh: "Energie [kWh]"
+    session_id: Session Identifier
+  # Replace with the applicable historical home electricity rate.
+  price_per_kwh: "0.225"
