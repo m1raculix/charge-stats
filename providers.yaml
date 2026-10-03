@@ -1,4 +1,13 @@
 # Provider-specific mappings. Empty entries are skipped until configured.
+AralPulse:
+  delimiter: ";"
+  encoding: utf-8-sig
+  date_formats: ["%d.%m.%y", "%d.%m.%Y"]
+  columns:
+    date: Datum
+    energy_kwh: kWh
+    cost_eur: Betrag
+
 AudiCharging:
   delimiter: ";"
   encoding: utf-8-sig
@@ -7,6 +16,26 @@ AudiCharging:
     date: Datum
     energy_kwh: kWh
     cost_eur: Betrag
+
+CityWatt:
+  delimiter: ";"
+  encoding: utf-8-sig
+  date_formats: ["%d.%m.%y", "%d.%m.%Y"]
+  columns:
+    date: Datum
+    energy_kwh: kWh
+    cost_eur: Betrag
+
+Others:
+  AralPulse:
+  delimiter: ";"
+  encoding: utf-8-sig
+  date_formats: ["%d.%m.%y", "%d.%m.%Y"]
+  columns:
+    date: date
+    energy_kwh: kwh
+    cost_eur: sum
+    name: name
 
 EWEGo: {}
 Vattenfall: {}

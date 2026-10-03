@@ -65,13 +65,14 @@ class CSVProvider:
                 if not any(row.values()):
                     continue
                 try:
+                    provider_name = get('name') or self.name
                     energy = number(get('energy_kwh'))
                     if energy is None or energy < 0:
                         raise ValueError('Energy missing or negative')
                     cost = number(get('cost_eur'))
                     if cost is None and cfg.get('price_per_kwh') is not None:
                         cost = energy * Decimal(str(cfg['price_per_kwh']))
-                    yield Session(date_iso(get('date'), cfg['date_formats']), self.name,
+                    yield Session(date_iso(get('date'), cfg['date_formats']), provider_name,
                                   str(energy), '' if cost is None else str(cost.quantize(Decimal('.01'))),
                                   get('location'), get('session_id'), str(path))
                 except ValueError as exc:
@@ -97,8 +98,10 @@ def run(data, output, configs):
     unique = {}
     duplicates = []
     errors = []
-    for name, cls in PROVIDERS.items():
-        cfg = configs.get(name, {})
+    for name, cfg in configs.items():
+        cls = PROVIDERS.get(name)
+        if cls is None:
+            cls = type(f'{name}Provider', (CSVProvider,), {'name': name})
         if not cfg.get('columns'):
             continue
         parser = cls(cfg)
@@ -106,8 +109,8 @@ def run(data, output, configs):
             try:
                 for item in parser.parse(path):
                     # Exact timestamps are intentionally required: near-matches need manual review.
-                    fallback = (name, item.date, Decimal(item.energy_kwh), item.cost_eur)
-                    key = (name, item.session_id) if item.session_id else fallback
+                    fallback = (item.provider, item.date, Decimal(item.energy_kwh), item.cost_eur)
+                    key = (item.provider, item.session_id) if item.session_id else fallback
                     # Also catch same no-ID entry imported twice; ID and no-ID records
                     # require manual review rather than risking a false positive.
                     if key in unique:
@@ -140,6 +143,33 @@ def run(data, output, configs):
                      'sessions': item['count'], 'sessions_without_cost': item['missing_cost']})
     write_csv(output / 'monthly_statistics.csv',
               ['month', 'provider', 'energy_kwh', 'cost_eur', 'sessions', 'sessions_without_cost'], rows)
+    # Provider-wide totals across all months. Average is energy-weighted, not
+    # the arithmetic mean of individual session prices. Exclude unknown-cost
+    # sessions from the price denominator so the average is not understated.
+    provider_summary = defaultdict(lambda: {'energy': Decimal(0), 'priced_energy': Decimal(0),
+                                            'cost': Decimal(0), 'count': 0, 'missing_cost': 0})
+    for session in sessions:
+        for provider in (session.provider, 'TOTAL'):
+            item = provider_summary[provider]
+            energy = Decimal(session.energy_kwh)
+            item['energy'] += energy
+            item['count'] += 1
+            if session.cost_eur != '':
+                item['cost'] += Decimal(session.cost_eur)
+                item['priced_energy'] += energy
+            else:
+                item['missing_cost'] += 1
+    provider_rows = []
+    for provider, item in sorted(provider_summary.items()):
+        avg = (item['cost'] / item['priced_energy']).quantize(Decimal('0.0001')) if item['priced_energy'] else None
+        provider_rows.append({'provider': provider, 'energy_kwh': str(item['energy']),
+                              'cost_eur': str(item['cost'].quantize(Decimal('0.01'))),
+                              'average_eur_per_kwh': '' if avg is None else str(avg),
+                              'energy_with_cost_kwh': str(item['priced_energy']),
+                              'sessions': item['count'], 'sessions_without_cost': item['missing_cost']})
+    write_csv(output / 'provider_statistics.csv',
+              ['provider', 'energy_kwh', 'cost_eur', 'average_eur_per_kwh',
+               'energy_with_cost_kwh', 'sessions', 'sessions_without_cost'], provider_rows)
     write_csv(output / 'errors.csv', ['file', 'error'], errors)
     print(f'{len(sessions)} sessions, {len(duplicates)} duplicates, {len(errors)} files with errors')
     for row in rows:
