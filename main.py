@@ -193,9 +193,9 @@ def run(data, output, configs):
 
         print(
             f"{row['provider']:<20}"
-            f"{row['energy_kwh']:>16}"
-            f"{row['cost_eur']:>16}"
-            f"{row['average_eur_per_kwh']:>14}"
+            f"{float(row['energy_kwh']):>16.2f}"
+            f"{float(row['cost_eur']):>16.2f}"
+            f"{float(row['average_eur_per_kwh']):>14.2f}"
             f"{row['sessions']:>12}"
         )
 
